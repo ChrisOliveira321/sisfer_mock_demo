@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>Demo Mock SISFER - Front</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body { font-family: Arial, sans-serif; max-width:800px; margin:20px auto; }
+    input, button { padding:8px; margin:4px 0; width:100%; box-sizing:border-box;}
+    .card{ border:1px solid #ddd; padding:12px; border-radius:8px; margin:10px 0; }
+    .row{ display:flex; gap:8px; }
+    .row > * { flex:1; }
+    pre { background:#f6f6f6; padding:8px; border-radius:6px; overflow:auto;}
+  </style>
+</head>
+<body>
+  <h2>Demo Mock SISFER (Frontend)</h2>
+  <p>Use o usuário de teste <b>transp1 / senha123</b>.</p>
+
+  <div class="card">
+    <h3>Login</h3>
+    <input id="usuario" placeholder="usuario" value="transp1" />
+    <input id="senha" placeholder="senha" value="senha123" type="password" />
+    <button id="btnLogin">Fazer login</button>
+    <div id="loginStatus"></div>
+  </div>
+
+  <div class="card" id="carregamentoCard" style="display:none;">
+    <h3>Criar carregamento</h3>
+    <input id="placa" placeholder="placa (ex: ABC-1234)" />
+    <input id="produto" placeholder="produto" />
+    <input id="peso" placeholder="peso (kg)" type="number" />
+    <div class="row">
+      <button id="btnCriar">Criar</button>
+      <button id="btnListar">Listar meus carregamentos</button>
+    </div>
+    <div id="result"></div>
+  </div>
+
+  <div class="card">
+    <h3>Logs / Resposta</h3>
+    <pre id="log">Aguardando ações...</pre>
+  </div>
+
+<script>
+const API = "http://127.0.0.1:5000";
+let token = null;
+
+function log(msg){
+  const el = document.getElementById('log');
+  el.textContent = msg + "\\n\\n" + el.textContent;
+}
+
+document.getElementById('btnLogin').addEventListener('click', async () => {
+  const usuario = document.getElementById('usuario').value;
+  const senha = document.getElementById('senha').value;
+  try {
+    const res = await fetch(API + '/login', {
+      method:'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ usuario, senha })
+    });
+    const j = await res.json();
+    if(res.ok){
+      token = j.token;
+      document.getElementById('loginStatus').innerText = "Logado como: " + j.usuario;
+      document.getElementById('carregamentoCard').style.display = 'block';
+      log("Login OK: token gerado: " + token);
+    } else {
+      document.getElementById('loginStatus').innerText = "Erro: " + (j.error || res.statusText);
+      log("Erro login: " + JSON.stringify(j));
+    }
+  } catch(e){
+    log("Erro de conexão: " + e);
+  }
+});
+
+document.getElementById('btnCriar').addEventListener('click', async () => {
+  if(!token){ alert('Faça login primeiro'); return; }
+  const placa = document.getElementById('placa').value;
+  const produto = document.getElementById('produto').value;
+  const peso = parseFloat(document.getElementById('peso').value || 0);
+  try{
+    const res = await fetch(API + '/carregamentos', {
+      method: 'POST',
+      headers: {
+        'Content-Type':'application/json',
+        'Authorization': 'Bearer ' + token
+      },
+      body: JSON.stringify({ placa, produto, peso })
+    });
+    const j = await res.json();
+    if(res.ok){
+      log("Carregamento criado: " + JSON.stringify(j));
+    } else {
+      log("Erro criar: " + JSON.stringify(j));
+    }
+  } catch(e){
+    log("Erro conexão: " + e);
+  }
+});
+
+document.getElementById('btnListar').addEventListener('click', async () => {
+  if(!token){ alert('Faça login primeiro'); return; }
+  try{
+    const res = await fetch(API + '/carregamentos', {
+      method: 'GET',
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    const j = await res.json();
+    if(res.ok){
+      log("Lista:\n" + JSON.stringify(j, null, 2));
+    } else {
+      log("Erro listar: " + JSON.stringify(j));
+    }
+  } catch(e){
+    log("Erro conexão: " + e);
+  }
+});
+</script>
+</body>
+</html>
